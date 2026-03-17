@@ -1,0 +1,28 @@
+FILE CHANGE LOG
+
+== Build: Initial implementation ==
+
+requirements.txt
+  - Added FastAPI 0.115.6, uvicorn 0.34.0, httpx 0.28.1, pytest 8.3.4.
+
+app/main.py
+  - Created FastAPI application with SQLite-backed persistence.
+  - Added NoteCreate / NoteOut Pydantic models.
+  - Implemented endpoints: GET /notes (list), POST /notes (create), DELETE /notes/{id} (delete).
+  - SQLite database auto-initialises on startup via lifespan handler.
+  - Embedded full HTML/CSS/JS single-page frontend served at GET /.
+  - Frontend displays notes as rectangular cards in a responsive grid with create form and delete buttons.
+
+app/test_main.py
+  - Created 7 tests using FastAPI TestClient and pytest.
+  - Tests cover: empty list, create note, create without body, list ordering, delete, delete 404, HTML index.
+  - Uses monkeypatch to swap DB path to a temp test DB that is cleaned up after each test.
+
+README.md
+  - Added setup, run, test instructions and project structure overview.
+
+prompts.txt
+  - Appended the build prompt.
+
+log.txt
+  - Created this file.
