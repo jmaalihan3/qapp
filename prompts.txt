@@ -20,3 +20,6 @@ Make changes 2 and 3. Persistence is not currently required.
 (2: Add start command that reads Render's $PORT env var,
  3: Add __init__.py to app/)
 
+PostgreSQL migration:
+Update my app to use PostgreSQL from Render. The external database URL is: <DATABASE_URL env var>
+

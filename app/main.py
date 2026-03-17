@@ -1,41 +1,42 @@
 """
-Minimal full-stack notetaking app built with FastAPI and SQLite.
+Minimal full-stack notetaking app built with FastAPI and PostgreSQL.
 Serves a single-page HTML frontend and exposes a JSON API for CRUD operations.
 """
 
 import os
-import sqlite3
 from contextlib import asynccontextmanager
-from pathlib import Path
 
+import psycopg2
+import psycopg2.extras
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-DB_PATH = Path(__file__).parent / "notes.db"
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
 
-def get_db() -> sqlite3.Connection:
-    """Return a connection to the SQLite database with row-factory enabled."""
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
+def get_db():
+    """Return a connection to the PostgreSQL database."""
+    conn = psycopg2.connect(DATABASE_URL)
     return conn
 
 
 def init_db() -> None:
     """Create the notes table if it doesn't already exist."""
     conn = get_db()
-    conn.execute(
+    cur = conn.cursor()
+    cur.execute(
         """
         CREATE TABLE IF NOT EXISTS notes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             title TEXT NOT NULL,
             body TEXT NOT NULL DEFAULT ''
         )
         """
     )
     conn.commit()
+    cur.close()
     conn.close()
 
 
@@ -68,21 +69,26 @@ class NoteOut(BaseModel):
 def list_notes():
     """Return every note in the database."""
     conn = get_db()
-    rows = conn.execute("SELECT id, title, body FROM notes ORDER BY id DESC").fetchall()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT id, title, body FROM notes ORDER BY id DESC")
+    rows = cur.fetchall()
+    cur.close()
     conn.close()
-    return [dict(r) for r in rows]
+    return rows
 
 
 @app.post("/notes", response_model=NoteOut, status_code=201)
 def create_note(note: NoteCreate):
     """Insert a new note and return it with its generated id."""
     conn = get_db()
-    cur = conn.execute(
-        "INSERT INTO notes (title, body) VALUES (?, ?)",
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO notes (title, body) VALUES (%s, %s) RETURNING id",
         (note.title, note.body),
     )
+    new_id = cur.fetchone()[0]
     conn.commit()
-    new_id = cur.lastrowid
+    cur.close()
     conn.close()
     return {"id": new_id, "title": note.title, "body": note.body}
 
@@ -91,11 +97,14 @@ def create_note(note: NoteCreate):
 def delete_note(note_id: int):
     """Delete a note by id. Returns 404 if the note doesn't exist."""
     conn = get_db()
-    cur = conn.execute("DELETE FROM notes WHERE id = ?", (note_id,))
-    conn.commit()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM notes WHERE id = %s", (note_id,))
     if cur.rowcount == 0:
+        cur.close()
         conn.close()
         raise HTTPException(status_code=404, detail="Note not found")
+    conn.commit()
+    cur.close()
     conn.close()
 
 

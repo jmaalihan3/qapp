@@ -35,3 +35,20 @@ app/main.py
 
 app/__init__.py
   - Created empty file so app/ is a proper Python package for deployment.
+
+== PostgreSQL migration ==
+
+requirements.txt
+  - Added psycopg2-binary 2.9.10.
+
+app/main.py
+  - Replaced sqlite3 with psycopg2 for PostgreSQL connectivity.
+  - Reads DATABASE_URL from environment variable instead of using a local file path.
+  - Changed table schema to use SERIAL primary key (Postgres) instead of AUTOINCREMENT (SQLite).
+  - Switched query placeholders from ? to %s and uses RETURNING id for inserts.
+  - Uses RealDictCursor for dict-style row access.
+
+app/test_main.py
+  - Removed SQLite-specific monkeypatch and temp file setup.
+  - Tests now run against the PostgreSQL database specified by DATABASE_URL.
+  - Added clean_table fixture that truncates the notes table before and after each test.

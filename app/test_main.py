@@ -1,29 +1,14 @@
 """
 Tests for the QApp Notes API using FastAPI's TestClient.
 Covers create, list, and delete operations.
+Uses the remote PostgreSQL database specified by DATABASE_URL.
+Each test cleans up after itself by deleting any notes it creates.
 """
 
 import os
-import sqlite3
 
 import pytest
 from fastapi.testclient import TestClient
-
-# Use an in-memory-style temp DB so tests don't pollute the real database.
-TEST_DB = os.path.join(os.path.dirname(__file__), "test_notes.db")
-
-
-@pytest.fixture(autouse=True)
-def setup_test_db(monkeypatch):
-    """Replace the production DB path with a temporary test DB for each test."""
-    from app import main
-
-    monkeypatch.setattr(main, "DB_PATH", TEST_DB)
-    main.init_db()
-    yield
-    # Tear down: remove test database after each test
-    if os.path.exists(TEST_DB):
-        os.remove(TEST_DB)
 
 
 @pytest.fixture()
@@ -32,6 +17,27 @@ def client():
     from app.main import app
 
     return TestClient(app, raise_server_exceptions=True)
+
+
+@pytest.fixture(autouse=True)
+def clean_table():
+    """Truncate the notes table before and after each test for isolation."""
+    from app.main import get_db, init_db
+
+    init_db()
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM notes")
+    conn.commit()
+    cur.close()
+    conn.close()
+    yield
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM notes")
+    conn.commit()
+    cur.close()
+    conn.close()
 
 
 def test_list_notes_empty(client):
@@ -76,7 +82,6 @@ def test_delete_note(client):
     del_res = client.delete(f"/notes/{note_id}")
     assert del_res.status_code == 204
 
-    # Verify it's gone
     notes = client.get("/notes").json()
     assert all(n["id"] != note_id for n in notes)
 
