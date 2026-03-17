@@ -26,3 +26,12 @@ prompts.txt
 
 log.txt
   - Created this file.
+
+== Render deploy prep ==
+
+app/main.py
+  - Added uvicorn and os imports.
+  - Added __main__ entrypoint that reads $PORT env var (default 8000) and binds to 0.0.0.0.
+
+app/__init__.py
+  - Created empty file so app/ is a proper Python package for deployment.

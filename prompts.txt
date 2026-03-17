@@ -15,3 +15,8 @@ Build it. Implement Steps 1-5 of Plan.
 (Plan: 1. requirements.txt, 2. app/main.py full-stack FastAPI + SQLite + HTML frontend,
 3. app/test_main.py tests, 4. README.md, 5. prompts.txt + log.txt)
 
+Render deploy prep:
+Make changes 2 and 3. Persistence is not currently required.
+(2: Add start command that reads Render's $PORT env var,
+ 3: Add __init__.py to app/)
+

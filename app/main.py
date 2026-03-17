@@ -3,10 +3,12 @@ Minimal full-stack notetaking app built with FastAPI and SQLite.
 Serves a single-page HTML frontend and exposes a JSON API for CRUD operations.
 """
 
+import os
 import sqlite3
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -291,3 +293,8 @@ INDEX_HTML = """\
 def index():
     """Serve the single-page frontend."""
     return INDEX_HTML
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
