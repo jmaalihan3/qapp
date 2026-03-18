@@ -87,6 +87,69 @@ def test_delete_nonexistent_note(client):
     assert res.status_code == 404
 
 
+def test_update_note_title(client):
+    """PUT /notes/{id} with a new title updates only the title."""
+    create_res = client.post("/notes", json={"title": "Old Title", "body": "Keep me"})
+    note_id = create_res.json()["id"]
+
+    res = client.put(f"/notes/{note_id}", json={"title": "New Title"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["title"] == "New Title"
+    assert data["body"] == "Keep me"
+
+
+def test_update_note_body(client):
+    """PUT /notes/{id} with a new body updates only the body."""
+    create_res = client.post("/notes", json={"title": "Stay", "body": "Old body"})
+    note_id = create_res.json()["id"]
+
+    res = client.put(f"/notes/{note_id}", json={"body": "New body"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["title"] == "Stay"
+    assert data["body"] == "New body"
+
+
+def test_update_note_both_fields(client):
+    """PUT /notes/{id} can update title and body at once."""
+    create_res = client.post("/notes", json={"title": "A", "body": "B"})
+    note_id = create_res.json()["id"]
+
+    res = client.put(f"/notes/{note_id}", json={"title": "C", "body": "D"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["title"] == "C"
+    assert data["body"] == "D"
+
+
+def test_update_nonexistent_note(client):
+    """PUT /notes/{id} returns 404 when the note doesn't exist."""
+    res = client.put("/notes/99999", json={"title": "Ghost"})
+    assert res.status_code == 404
+
+
+def test_update_no_fields(client):
+    """PUT /notes/{id} with no fields returns 422."""
+    create_res = client.post("/notes", json={"title": "X"})
+    note_id = create_res.json()["id"]
+
+    res = client.put(f"/notes/{note_id}", json={})
+    assert res.status_code == 422
+
+
+def test_update_persists(client):
+    """Updated note data is reflected in subsequent GET /notes."""
+    create_res = client.post("/notes", json={"title": "Before", "body": "old"})
+    note_id = create_res.json()["id"]
+
+    client.put(f"/notes/{note_id}", json={"title": "After", "body": "new"})
+    notes = client.get("/notes").json()
+    note = next(n for n in notes if n["id"] == note_id)
+    assert note["title"] == "After"
+    assert note["body"] == "new"
+
+
 def test_index_returns_html(client):
     """GET / serves the HTML frontend."""
     res = client.get("/")

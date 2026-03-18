@@ -56,6 +56,11 @@ class NoteCreate(BaseModel):
     body: str = ""
 
 
+class NoteUpdate(BaseModel):
+    title: str | None = None
+    body: str | None = None
+
+
 class NoteOut(BaseModel):
     id: int
     title: str
@@ -85,6 +90,27 @@ def create_note(note: NoteCreate):
     new_id = cur.lastrowid
     conn.close()
     return {"id": new_id, "title": note.title, "body": note.body}
+
+
+@app.put("/notes/{note_id}", response_model=NoteOut)
+def update_note(note_id: int, updates: NoteUpdate):
+    """Update a note's title and/or body. Returns 404 if the note doesn't exist."""
+    if updates.title is None and updates.body is None:
+        raise HTTPException(status_code=422, detail="No fields to update")
+    conn = get_db()
+    row = conn.execute("SELECT id, title, body FROM notes WHERE id = ?", (note_id,)).fetchone()
+    if row is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Note not found")
+    new_title = updates.title if updates.title is not None else row["title"]
+    new_body = updates.body if updates.body is not None else row["body"]
+    conn.execute(
+        "UPDATE notes SET title = ?, body = ? WHERE id = ?",
+        (new_title, new_body, note_id),
+    )
+    conn.commit()
+    conn.close()
+    return {"id": note_id, "title": new_title, "body": new_body}
 
 
 @app.delete("/notes/{note_id}", status_code=204)
@@ -209,11 +235,15 @@ INDEX_HTML = """\
     flex: 1;
   }
 
-  .note-card button {
-    align-self: flex-end;
+  .note-card .actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: .5rem;
+  }
+
+  .note-card .actions button {
     background: none;
     border: none;
-    color: #ef4444;
     font-size: .85rem;
     font-weight: 600;
     cursor: pointer;
@@ -222,7 +252,34 @@ INDEX_HTML = """\
     transition: background .15s;
   }
 
-  .note-card button:hover { background: #fef2f2; }
+  .note-card .btn-edit { color: #6366f1; }
+  .note-card .btn-edit:hover { background: #eef2ff; }
+  .note-card .btn-delete { color: #ef4444; }
+  .note-card .btn-delete:hover { background: #fef2f2; }
+  .note-card .btn-save { color: #16a34a; }
+  .note-card .btn-save:hover { background: #f0fdf4; }
+  .note-card .btn-cancel { color: #6b7280; }
+  .note-card .btn-cancel:hover { background: #f3f4f6; }
+
+  .note-card input.edit-title,
+  .note-card textarea.edit-body {
+    width: 100%;
+    padding: .4rem .6rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: inherit;
+    font-family: inherit;
+    transition: border-color .15s;
+  }
+
+  .note-card input.edit-title:focus,
+  .note-card textarea.edit-body:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+  }
+
+  .note-card textarea.edit-body { resize: vertical; min-height: 60px; }
 </style>
 </head>
 <body>
@@ -247,21 +304,58 @@ INDEX_HTML = """\
     const res   = await fetch('/notes');
     const notes = await res.json();
     notesEl.innerHTML = '';
-    notes.forEach(n => {
-      const card = document.createElement('div');
-      card.className = 'note-card';
-      card.innerHTML =
-        '<h3>' + esc(n.title) + '</h3>' +
-        '<p>'  + esc(n.body)  + '</p>' +
-        '<button data-id="' + n.id + '">Delete</button>';
-      card.querySelector('button').addEventListener('click', () => deleteNote(n.id));
-      notesEl.appendChild(card);
+    notes.forEach(n => renderCard(n));
+  }
+
+  function renderCard(n) {
+    const card = document.createElement('div');
+    card.className = 'note-card';
+    card.dataset.id = n.id;
+    card.innerHTML =
+      '<h3>' + esc(n.title) + '</h3>' +
+      '<p>'  + esc(n.body)  + '</p>' +
+      '<div class="actions">' +
+        '<button class="btn-edit">Edit</button>' +
+        '<button class="btn-delete">Delete</button>' +
+      '</div>';
+    card.querySelector('.btn-delete').addEventListener('click', () => deleteNote(n.id));
+    card.querySelector('.btn-edit').addEventListener('click', () => startEdit(card, n));
+    notesEl.appendChild(card);
+  }
+
+  function startEdit(card, n) {
+    card.innerHTML =
+      '<input class="edit-title" value="' + attr(n.title) + '">' +
+      '<textarea class="edit-body">' + esc(n.body) + '</textarea>' +
+      '<div class="actions">' +
+        '<button class="btn-cancel">Cancel</button>' +
+        '<button class="btn-save">Save</button>' +
+      '</div>';
+    card.querySelector('.btn-cancel').addEventListener('click', () => {
+      card.innerHTML = '';
+      card.remove();
+      renderCard(n);
     });
+    card.querySelector('.btn-save').addEventListener('click', async () => {
+      const title = card.querySelector('.edit-title').value;
+      const body  = card.querySelector('.edit-body').value;
+      const res = await fetch('/notes/' + n.id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, body })
+      });
+      if (res.ok) { const updated = await res.json(); card.innerHTML = ''; card.remove(); renderCard(updated); }
+    });
+    card.querySelector('.edit-title').focus();
   }
 
   async function deleteNote(id) {
     await fetch('/notes/' + id, { method: 'DELETE' });
     loadNotes();
+  }
+
+  function attr(s) {
+    return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
   form.addEventListener('submit', async (e) => {

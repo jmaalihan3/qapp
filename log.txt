@@ -48,3 +48,24 @@ Dockerfile
 
 README.md
   - Added Docker build/run instructions and updated project structure listing.
+
+== Edit/Update notes ==
+
+app/main.py
+  - Added NoteUpdate Pydantic model with optional title and body fields for partial updates.
+  - Added PUT /notes/{note_id} endpoint: merges provided fields with existing note, returns 404 if missing, 422 if no fields given.
+  - Frontend: replaced single Delete button with Edit/Delete action buttons per card.
+  - Frontend: added startEdit() function that swaps card content to editable inputs with Save/Cancel controls.
+  - Frontend: Save sends PUT request and re-renders card; Cancel restores original view.
+  - Frontend: added CSS for edit/save/cancel button styles and inline edit form fields.
+  - Frontend: added attr() helper for safe HTML attribute escaping.
+
+app/test_main.py
+  - Added 6 new tests: update title only, update body only, update both fields, update nonexistent (404), update no fields (422), update persists in GET.
+  - Total test count: 13.
+
+prompts.txt
+  - Appended the edit/update prompt.
+
+log.txt
+  - Appended this entry.
