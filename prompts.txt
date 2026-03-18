@@ -20,3 +20,13 @@ Make changes 2 and 3. Persistence is not currently required.
 (2: Add start command that reads Render's $PORT env var,
  3: Add __init__.py to app/)
 
+PostgreSQL migration:
+Update my app to use PostgreSQL from Render. The external database URL is: <DATABASE_URL env var>
+
+Users feature:
+Users feature: app should prompt a user login and save notes per user. Use OAuth2 + JWT for login credentials.
+Build it.
+(Plan: 1. Add python-jose, bcrypt, python-multipart deps, 2. Add users table + user_id FK on notes,
+3. Auth routes: POST /register, POST /token with JWT, 4. Protect note routes with get_current_user dependency,
+5. Scope notes to authenticated user, 6. Update frontend with login/register UI + token storage,
+7. Rewrite tests for auth + user isolation, 8. Update prompts.txt + log.txt)
