@@ -52,3 +52,35 @@ app/test_main.py
   - Removed SQLite-specific monkeypatch and temp file setup.
   - Tests now run against the PostgreSQL database specified by DATABASE_URL.
   - Added clean_table fixture that truncates the notes table before and after each test.
+
+== Users feature: OAuth2 + JWT authentication ==
+
+requirements.txt
+  - Added python-jose[cryptography] 3.5.0 for JWT creation/validation.
+  - Added bcrypt 5.0.0 for password hashing.
+  - Added python-multipart 0.0.22 for OAuth2 form-based login.
+
+app/main.py
+  - Added users table (id, username UNIQUE, hashed_password) in init_db().
+  - Added user_id FK column to notes table with ON DELETE CASCADE.
+  - Added hash_password() and verify_password() helpers using bcrypt directly.
+  - Added UserCreate and Token Pydantic models.
+  - Added OAuth2PasswordBearer scheme and get_current_user dependency (decodes JWT, looks up user).
+  - Added create_access_token() helper with configurable expiry (default 60 min).
+  - Added POST /register endpoint: creates user with hashed password, returns 409 on duplicate.
+  - Added POST /token endpoint: OAuth2 password flow, validates credentials, returns JWT.
+  - All note endpoints now require authentication via Depends(get_current_user).
+  - GET /notes filtered by user_id; POST /notes attaches user_id; DELETE /notes checks user_id.
+  - Frontend rewritten with auth panel (login/register toggle), JWT stored in localStorage.
+  - All fetch calls include Authorization header; auto-logout on 401.
+  - Added top bar with username display and logout button.
+  - SECRET_KEY read from $SECRET_KEY env var (falls back to dev default).
+
+app/test_main.py
+  - Rewrote test suite: 16 tests covering auth and per-user CRUD.
+  - Added _register(), _login(), _auth() test helpers.
+  - Auth tests: register, duplicate register (409), login, wrong password (401), nonexistent user (401).
+  - Access tests: GET /notes and POST /notes return 401 without token.
+  - CRUD tests: all original note tests updated to pass auth headers.
+  - Isolation tests: notes invisible across users, cannot delete another user's note.
+  - clean_tables fixture truncates both notes and users tables.
